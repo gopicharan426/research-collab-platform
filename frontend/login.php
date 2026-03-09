@@ -1,6 +1,6 @@
 <?php
-require_once '../app/auth/auth.php';
-require_once '../app/config/google_config.php';
+require_once '../backend/app/auth/auth.php';
+require_once '../backend/app/config/google_config.php';
 
 // Generate Google OAuth URL
 $googleAuthUrl = GOOGLE_AUTH_URL . '?' . http_build_query([

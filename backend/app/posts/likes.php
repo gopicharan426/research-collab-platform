@@ -1,5 +1,5 @@
 <?php
-require_once '../app/config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 // Toggle like on post
 function toggleLike($postId, $userId) {

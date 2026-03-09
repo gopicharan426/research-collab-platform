@@ -1,5 +1,5 @@
 <?php
-require_once '../app/config/database.php';
+require_once '../backend/app/config/database.php';
 
 $message = '';
 $messageType = '';

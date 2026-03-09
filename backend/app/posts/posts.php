@@ -1,5 +1,5 @@
 <?php
-require_once '../app/config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 // Create new research post
 function createPost($userId, $title, $description) {

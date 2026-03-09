@@ -1,6 +1,6 @@
 <?php
-require_once '../app/config/database.php';
-require_once '../app/config/google_config.php';
+require_once '../backend/app/config/database.php';
+require_once '../backend/app/config/google_config.php';
 
 // Handle OAuth callback
 if (isset($_GET['code'])) {

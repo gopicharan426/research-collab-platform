@@ -1,5 +1,5 @@
 <?php
-require_once '../app/config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 // Add comment to post
 function addComment($postId, $userId, $commentText) {

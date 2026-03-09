@@ -1,8 +1,8 @@
 <?php
-require_once '../app/auth/auth.php';
-require_once '../app/posts/posts.php';
-require_once '../app/comments/comments.php';
-require_once '../app/posts/likes.php';
+require_once '../backend/app/auth/auth.php';
+require_once '../backend/app/posts/posts.php';
+require_once '../backend/app/comments/comments.php';
+require_once '../backend/app/posts/likes.php';
 
 // Require login
 requireLogin();
