@@ -3,6 +3,7 @@ require_once '../backend/app/auth/auth.php';
 require_once '../backend/app/posts/posts.php';
 require_once '../backend/app/comments/comments.php';
 require_once '../backend/app/posts/likes.php';
+require_once '../backend/app/social/notifications.php';
 
 // Require login
 requireLogin();
@@ -20,10 +21,7 @@ if (!$postId) {
     exit();
 }
 
-// Increment view count
-incrementViews($postId);
-
-// Get post details
+// Get post details first
 $post = getPostById($postId);
 
 if (!$post) {
@@ -53,6 +51,11 @@ if (isset($_POST['action']) && $_POST['action'] === 'add_comment') {
     }
 }
 
+// Increment view count (only on GET, not POST)
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    incrementViews($postId);
+}
+
 // Get comments for this post
 $comments = getCommentsByPost($postId);
 ?>
@@ -75,6 +78,20 @@ $comments = getCommentsByPost($postId);
                 <nav class="nav-links">
                     <a href="dashboard.php">Dashboard</a>
                     <a href="index.php">Home</a>
+                    <a href="search_users.php">Search Users</a>
+                    <div class="notif-wrapper">
+                        <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
+                            🔔
+                            <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                        </button>
+                        <div class="notif-panel" id="notifPanel">
+                            <div class="notif-header">
+                                <span>Notifications</span>
+                                <button onclick="markAllRead()" class="notif-mark-read">Mark all read</button>
+                            </div>
+                            <div class="notif-list" id="notifList"><p class="notif-empty">Loading...</p></div>
+                        </div>
+                    </div>
                     <a href="?logout=1">Logout</a>
                 </nav>
             </div>

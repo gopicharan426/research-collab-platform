@@ -1,50 +1,52 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../social/notifications.php';
 
-// Add comment to post
 function addComment($postId, $userId, $commentText) {
-    $pdo = getDBConnection();
-    
-    if (empty($commentText)) {
-        return "Comment cannot be empty.";
+    if (empty($commentText)) return "Comment cannot be empty.";
+    if (strlen($commentText) > 1000) return "Comment must be less than 1000 characters.";
+
+    $col       = getCollection('comments');
+    $posts     = getCollection('research_posts');
+    $users     = getCollection('users');
+    $commentId = getNextId('comments');
+
+    $col->insertOne([
+        'comment_id'   => $commentId,
+        'post_id'      => (int)$postId,
+        'user_id'      => (int)$userId,
+        'comment_text' => $commentText,
+        'created_at'   => date('Y-m-d H:i:s')
+    ]);
+
+    $post   = $posts->findOne(['post_id' => (int)$postId]);
+    $sender = $users->findOne(['user_id' => (int)$userId]);
+
+    if ($post && (int)$post['user_id'] !== (int)$userId) {
+        createNotification(
+            (int)$post['user_id'], (int)$userId, 'comment',
+            htmlspecialchars($sender['name'], ENT_QUOTES, 'UTF-8') . ' commented on your post "' . htmlspecialchars(substr($post['title'], 0, 40), ENT_QUOTES, 'UTF-8') . '"',
+            "/post_details.php?id=$postId"
+        );
     }
-    
-    if (strlen($commentText) > 1000) {
-        return "Comment must be less than 1000 characters.";
-    }
-    
-    $stmt = $pdo->prepare("INSERT INTO comments (post_id, user_id, comment_text) VALUES (?, ?, ?)");
-    
-    if ($stmt->execute([$postId, $userId, $commentText])) {
-        return "success";
-    }
-    return "Failed to add comment.";
+    return "success";
 }
 
-// Get comments for a post
 function getCommentsByPost($postId) {
-    $pdo = getDBConnection();
-    
-    $stmt = $pdo->prepare("
-        SELECT c.comment_text, c.created_at, u.name as author_name 
-        FROM comments c 
-        JOIN users u ON c.user_id = u.user_id 
-        WHERE c.post_id = ? 
-        ORDER BY c.created_at ASC
-    ");
-    $stmt->execute([$postId]);
-    
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $col      = getCollection('comments');
+    $users    = getCollection('users');
+    $comments = $col->find(['post_id' => (int)$postId], ['sort' => ['created_at' => 1]])->toArray();
+    return array_map(function($c) use ($users) {
+        $author = $users->findOne(['user_id' => (int)$c['user_id']]);
+        return [
+            'comment_text' => $c['comment_text'],
+            'created_at'   => $c['created_at'],
+            'author_name'  => $author['name'] ?? 'Unknown'
+        ];
+    }, $comments);
 }
 
-// Get comment count for a post
 function getCommentCount($postId) {
-    $pdo = getDBConnection();
-    
-    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM comments WHERE post_id = ?");
-    $stmt->execute([$postId]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    return $result['count'];
+    return (int)getCollection('comments')->countDocuments(['post_id' => (int)$postId]);
 }
 ?>

@@ -3,6 +3,7 @@ require_once '../backend/app/auth/auth.php';
 require_once '../backend/app/posts/posts.php';
 require_once '../backend/app/comments/comments.php';
 require_once '../backend/app/posts/likes.php';
+require_once '../backend/app/social/notifications.php';
 
 // Require login
 requireLogin();
@@ -14,7 +15,7 @@ if (isset($_GET['logout'])) {
 
 // Get all posts
 $search = isset($_GET['search']) ? $_GET['search'] : '';
-$allPosts = getAllPosts($search);
+$allPosts = getAllPosts($search, $_SESSION['user_id']);
 ?>
 
 <!DOCTYPE html>
@@ -35,6 +36,20 @@ $allPosts = getAllPosts($search);
                 <nav class="nav-links">
                     <a href="dashboard.php">Dashboard</a>
                     <a href="index.php">Home</a>
+                    <a href="search_users.php">Search Users</a>
+                    <div class="notif-wrapper">
+                        <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
+                            🔔
+                            <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                        </button>
+                        <div class="notif-panel" id="notifPanel">
+                            <div class="notif-header">
+                                <span>Notifications</span>
+                                <button onclick="markAllRead()" class="notif-mark-read">Mark all read</button>
+                            </div>
+                            <div class="notif-list" id="notifList"><p class="notif-empty">Loading...</p></div>
+                        </div>
+                    </div>
                     <a href="?logout=1">Logout</a>
                 </nav>
             </div>
@@ -50,11 +65,11 @@ $allPosts = getAllPosts($search);
                 <!-- Search Bar -->
                 <form method="GET" style="margin-top: 1.5rem;">
                     <div class="form-group">
-                        <input type="text" name="search" class="form-control" placeholder="Search research posts..." value="<?php echo htmlspecialchars($search); ?>">
+                        <input type="text" name="search" class="form-control" placeholder="Search research posts by title or description..." value="<?php echo htmlspecialchars($search); ?>">
                     </div>
-                    <button type="submit" class="btn btn-primary">Search</button>
+                    <button type="submit" class="btn btn-primary">Search Posts</button>
                     <?php if ($search): ?>
-                        <a href="index.php" class="btn btn-secondary">Clear Search</a>
+                        <a href="index.php" class="btn btn-secondary">Clear</a>
                     <?php endif; ?>
                 </form>
             </div>
@@ -74,9 +89,12 @@ $allPosts = getAllPosts($search);
                             <a href="post_details.php?id=<?php echo $post['post_id']; ?>" style="text-decoration: none; color: inherit;">
                                 <?php echo htmlspecialchars($post['title']); ?>
                             </a>
+                            <?php if (isset($post['feed_priority']) && $post['feed_priority'] == 0): ?>
+                                <span class="feed-badge">Following</span>
+                            <?php endif; ?>
                         </h3>
                         <div class="post-meta">
-                            By <?php echo htmlspecialchars($post['author_name']); ?> on <?php echo date('F j, Y', strtotime($post['created_at'])); ?>
+                            By <a href="view_profile.php?id=<?php echo $post['author_id']; ?>" style="color:var(--primary);font-weight:600;"><?php echo htmlspecialchars($post['author_name']); ?></a> on <?php echo date('F j, Y', strtotime($post['created_at'])); ?>
                             • <?php echo getCommentCount($post['post_id']); ?> comments
                             • <?php echo getViewCount($post['post_id']); ?> views
                             • <?php echo getLikeCount($post['post_id']); ?> likes

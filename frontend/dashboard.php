@@ -2,6 +2,8 @@
 require_once '../backend/app/auth/auth.php';
 require_once '../backend/app/posts/posts.php';
 require_once '../backend/app/posts/likes.php';
+require_once '../backend/app/users/profile.php';
+require_once '../backend/app/social/notifications.php';
 
 // Require login
 requireLogin();
@@ -42,6 +44,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'create_post') {
 
 // Get user's posts
 $userPosts = getPostsByUser($_SESSION['user_id']);
+$profile = getUserProfile($_SESSION['user_id']);
+$totalLikes = getUserTotalLikes($_SESSION['user_id']);
+$totalViews = getUserTotalViews($_SESSION['user_id']);
 ?>
 
 <!DOCTYPE html>
@@ -62,6 +67,20 @@ $userPosts = getPostsByUser($_SESSION['user_id']);
                 <nav class="nav-links">
                     <a href="dashboard.php">Dashboard</a>
                     <a href="index.php">Home</a>
+                    <a href="search_users.php">Search Users</a>
+                    <div class="notif-wrapper">
+                        <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
+                            🔔
+                            <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                        </button>
+                        <div class="notif-panel" id="notifPanel">
+                            <div class="notif-header">
+                                <span>Notifications</span>
+                                <button onclick="markAllRead()" class="notif-mark-read">Mark all read</button>
+                            </div>
+                            <div class="notif-list" id="notifList"><p class="notif-empty">Loading...</p></div>
+                        </div>
+                    </div>
                     <a href="?logout=1">Logout</a>
                 </nav>
             </div>
@@ -81,11 +100,49 @@ $userPosts = getPostsByUser($_SESSION['user_id']);
             <div class="user-info">
                 <div class="user-avatar"><?php echo strtoupper(substr($_SESSION['user_name'], 0, 1)); ?></div>
                 <h3><?php echo htmlspecialchars($_SESSION['user_name']); ?></h3>
+                
+                <?php if (!empty($profile['username'])): ?>
+                    <p>@<?php echo htmlspecialchars($profile['username']); ?></p>
+                <?php endif; ?>
+                
                 <p><?php echo htmlspecialchars($_SESSION['user_email']); ?></p>
+                
+                <?php if (!empty($profile['role'])): ?>
+                    <p class="user-meta"><?php echo ucfirst($profile['role']); ?><?php echo !empty($profile['designation']) ? ' · ' . htmlspecialchars($profile['designation']) : ''; ?><?php echo !empty($profile['class']) ? ' · ' . htmlspecialchars($profile['class']) : ''; ?></p>
+                <?php endif; ?>
+                
+                <?php if (!empty($profile['department'])): ?>
+                    <p class="user-meta">📚 <?php echo htmlspecialchars($profile['department']); ?></p>
+                <?php endif; ?>
+                
+                <?php if (!empty($profile['location'])): ?>
+                    <p class="user-meta">📍 <?php echo htmlspecialchars($profile['location']); ?></p>
+                <?php endif; ?>
+                
+                <?php if (!empty($profile['bio'])): ?>
+                    <div class="user-bio"><?php echo nl2br(htmlspecialchars(substr($profile['bio'], 0, 120))); ?><?php echo strlen($profile['bio']) > 120 ? '...' : ''; ?></div>
+                <?php endif; ?>
+                
+                <?php if (!empty($profile['research_interests'])): ?>
+                    <p class="user-meta" style="margin-top:8px;">🔬 <?php echo htmlspecialchars(substr($profile['research_interests'], 0, 80)); ?><?php echo strlen($profile['research_interests']) > 80 ? '...' : ''; ?></p>
+                <?php endif; ?>
+                
                 <div class="user-stats">
-                    <strong><?php echo count($userPosts); ?></strong>
-                    <span>Research Posts</span>
+                    <div>
+                        <strong><?php echo count($userPosts); ?></strong>
+                        <span>Posts</span>
+                    </div>
+                    <div>
+                        <strong><?php echo $totalLikes; ?></strong>
+                        <span>Likes</span>
+                    </div>
+                    <div>
+                        <strong><?php echo $totalViews; ?></strong>
+                        <span>Views</span>
+                    </div>
                 </div>
+                
+                <a href="edit_profile.php" class="btn btn-secondary" style="margin-top: 1rem; width: 100%;">Edit Profile</a>
             </div>
 
                 <!-- Create New Post -->

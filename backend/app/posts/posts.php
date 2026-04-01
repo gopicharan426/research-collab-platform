@@ -1,103 +1,115 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../social/notifications.php';
 
-// Create new research post
 function createPost($userId, $title, $description) {
-    $pdo = getDBConnection();
-    
-    if (empty($title) || empty($description)) {
-        return "Title and description are required.";
-    }
-    
-    if (strlen($title) > 200) {
-        return "Title must be less than 200 characters.";
-    }
-    
-    $stmt = $pdo->prepare("INSERT INTO research_posts (user_id, title, description) VALUES (?, ?, ?)");
-    
-    if ($stmt->execute([$userId, $title, $description])) {
-        return "success";
-    }
-    return "Failed to create post.";
+    if (empty($title) || empty($description)) return "Title and description are required.";
+    if (strlen($title) > 200) return "Title must be less than 200 characters.";
+
+    $col    = getCollection('research_posts');
+    $postId = getNextId('research_posts');
+
+    $col->insertOne([
+        'post_id'     => $postId,
+        'user_id'     => (int)$userId,
+        'title'       => $title,
+        'description' => $description,
+        'views'       => 0,
+        'created_at'  => date('Y-m-d H:i:s')
+    ]);
+
+    // Notify followers
+    $users  = getCollection('users');
+    $author = $users->findOne(['user_id' => (int)$userId]);
+    if ($author) notifyFollowersNewPost($userId, $postId, $author['name'], $title);
+
+    return "success";
 }
 
-// Get all research posts with author names
-function getAllPosts($search = '') {
-    $pdo = getDBConnection();
-    
+function getAllPosts($search = '', $currentUserId = 0) {
+    $col      = getCollection('research_posts');
+    $users    = getCollection('users');
+    $followers = getCollection('followers');
+
+    $filter = [];
     if (!empty($search)) {
-        $stmt = $pdo->prepare("
-            SELECT p.post_id, p.title, p.description, p.created_at, u.name as author_name 
-            FROM research_posts p 
-            JOIN users u ON p.user_id = u.user_id 
-            WHERE p.title LIKE ? OR p.description LIKE ?
-            ORDER BY p.created_at DESC
-        ");
-        $searchTerm = '%' . $search . '%';
-        $stmt->execute([$searchTerm, $searchTerm]);
-    } else {
-        $stmt = $pdo->prepare("
-            SELECT p.post_id, p.title, p.description, p.created_at, u.name as author_name 
-            FROM research_posts p 
-            JOIN users u ON p.user_id = u.user_id 
-            ORDER BY p.created_at DESC
-        ");
-        $stmt->execute();
+        $filter = ['$or' => [
+            ['title'       => new MongoDB\BSON\Regex($search, 'i')],
+            ['description' => new MongoDB\BSON\Regex($search, 'i')]
+        ]];
     }
-    
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $posts = $col->find($filter, ['sort' => ['created_at' => -1]])->toArray();
+
+    // Get followed user IDs
+    $followedIds = [];
+    if ($currentUserId) {
+        $follows = $followers->find(['follower_id' => (int)$currentUserId])->toArray();
+        foreach ($follows as $f) $followedIds[] = (int)$f['following_id'];
+    }
+
+    $result = [];
+    foreach ($posts as $post) {
+        $author = $users->findOne(['user_id' => (int)$post['user_id']]);
+        $result[] = [
+            'post_id'          => (int)$post['post_id'],
+            'title'            => $post['title'],
+            'description'      => $post['description'],
+            'created_at'       => $post['created_at'],
+            'views'            => (int)($post['views'] ?? 0),
+            'author_name'      => $author['name'] ?? 'Unknown',
+            'author_id'        => (int)$post['user_id'],
+            'author_username'  => $author['username'] ?? '',
+            'feed_priority'    => in_array((int)$post['user_id'], $followedIds) ? 0 : 1
+        ];
+    }
+
+    // Sort: followed first, then by date
+    usort($result, fn($a, $b) =>
+        $a['feed_priority'] !== $b['feed_priority']
+            ? $a['feed_priority'] - $b['feed_priority']
+            : strcmp($b['created_at'], $a['created_at'])
+    );
+
+    return $result;
 }
 
-// Get single post with details
 function getPostById($postId) {
-    $pdo = getDBConnection();
-    
-    $stmt = $pdo->prepare("
-        SELECT p.post_id, p.title, p.description, p.created_at, p.user_id, u.name as author_name 
-        FROM research_posts p 
-        JOIN users u ON p.user_id = u.user_id 
-        WHERE p.post_id = ?
-    ");
-    $stmt->execute([$postId]);
-    
-    return $stmt->fetch(PDO::FETCH_ASSOC);
+    $col   = getCollection('research_posts');
+    $users = getCollection('users');
+    $post  = $col->findOne(['post_id' => (int)$postId]);
+    if (!$post) return null;
+    $author = $users->findOne(['user_id' => (int)$post['user_id']]);
+    return [
+        'post_id'     => (int)$post['post_id'],
+        'title'       => $post['title'],
+        'description' => $post['description'],
+        'created_at'  => $post['created_at'],
+        'views'       => (int)($post['views'] ?? 0),
+        'user_id'     => (int)$post['user_id'],
+        'author_name' => $author['name'] ?? 'Unknown'
+    ];
 }
 
-// Get posts by user
 function getPostsByUser($userId) {
-    $pdo = getDBConnection();
-    
-    $stmt = $pdo->prepare("
-        SELECT post_id, title, description, created_at, views
-        FROM research_posts 
-        WHERE user_id = ? 
-        ORDER BY created_at DESC
-    ");
-    $stmt->execute([$userId]);
-    
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $col   = getCollection('research_posts');
+    $posts = $col->find(['user_id' => (int)$userId], ['sort' => ['created_at' => -1]])->toArray();
+    return array_map(fn($p) => [
+        'post_id'     => (int)$p['post_id'],
+        'title'       => $p['title'],
+        'description' => $p['description'],
+        'created_at'  => $p['created_at'],
+        'views'       => (int)($p['views'] ?? 0)
+    ], $posts);
 }
 
-// Delete post
 function deletePost($postId, $userId, $isAdmin = false) {
-    $pdo = getDBConnection();
-    
-    if ($isAdmin) {
-        $stmt = $pdo->prepare("DELETE FROM research_posts WHERE post_id = ?");
-        if ($stmt->execute([$postId])) {
-            return "success";
-        }
-    } else {
-        $stmt = $pdo->prepare("SELECT user_id FROM research_posts WHERE post_id = ?");
-        $stmt->execute([$postId]);
-        $post = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($post && $post['user_id'] == $userId) {
-            $stmt = $pdo->prepare("DELETE FROM research_posts WHERE post_id = ?");
-            if ($stmt->execute([$postId])) {
-                return "success";
-            }
-        }
+    $col  = getCollection('research_posts');
+    $post = $col->findOne(['post_id' => (int)$postId]);
+    if (!$post) return "Post not found.";
+    if ($isAdmin || (int)$post['user_id'] === (int)$userId) {
+        $col->deleteOne(['post_id' => (int)$postId]);
+        return "success";
     }
     return "Failed to delete post.";
 }

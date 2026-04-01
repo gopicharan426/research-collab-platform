@@ -1,6 +1,7 @@
 <?php
 require_once '../backend/app/auth/auth.php';
 require_once '../backend/app/config/google_config.php';
+require_once '../backend/app/config/recaptcha_config.php';
 
 // Generate Google OAuth URL
 $googleAuthUrl = GOOGLE_AUTH_URL . '?' . http_build_query([
@@ -33,9 +34,21 @@ if (isset($_POST['action']) && $_POST['action'] === 'login') {
     }
 }
 
-// Handle registration
+// Handle registration with role-based fields and CAPTCHA
 if (isset($_POST['action']) && $_POST['action'] === 'register') {
-    $result = registerUser($_POST['name'], $_POST['email'], $_POST['password']);
+    // Get form data
+    $name = $_POST['name'] ?? '';
+    $username = $_POST['username'] ?? '';
+    $email = $_POST['email'] ?? '';
+    $password = $_POST['password'] ?? '';
+    $role = $_POST['role'] ?? '';
+    $department = $_POST['department'] ?? '';
+    $class = $_POST['class'] ?? null;
+    $designation = $_POST['designation'] ?? null;
+    $recaptchaResponse = $_POST['g-recaptcha-response'] ?? '';
+    
+    $result = registerUser($name, $username, $email, $password, $role, $department, $class, $designation, $recaptchaResponse);
+    
     if ($result === 'success') {
         $message = 'Registration successful! Please login.';
         $messageType = 'success';
@@ -60,6 +73,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'forgot_password') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Research Collaboration Platform</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- Google reCAPTCHA v2 -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
     <header class="header">
@@ -126,26 +141,69 @@ if (isset($_POST['action']) && $_POST['action'] === 'forgot_password') {
                     </div>
                 
                 <?php elseif ($showForm === 'register'): ?>
-                    <!-- Registration Form -->
+                    <!-- Enhanced Registration Form with Role-Based Fields and CAPTCHA -->
                     <div class="card">
                         <h2 style="text-align: center;">Create New Account</h2>
-                        <form method="POST">
+                        <form method="POST" id="registerForm">
                             <input type="hidden" name="action" value="register">
                             
+                            <!-- Full Name -->
                             <div class="form-group">
-                                <label for="register-name">Full Name:</label>
+                                <label for="register-name">Full Name: <span style="color: red;">*</span></label>
                                 <input type="text" id="register-name" name="name" class="form-control" required>
                             </div>
                             
+                            <!-- Username -->
                             <div class="form-group">
-                                <label for="register-email">Email:</label>
+                                <label for="register-username">Username: <span style="color: red;">*</span></label>
+                                <input type="text" id="register-username" name="username" class="form-control" required pattern="[a-zA-Z0-9_]{3,30}" placeholder="e.g., john_doe123">
+                                <small style="color: #6c757d;">3-30 characters, letters, numbers, underscores only</small>
+                            </div>
+                            
+                            <!-- Email -->
+                            <div class="form-group">
+                                <label for="register-email">Email: <span style="color: red;">*</span></label>
                                 <input type="email" id="register-email" name="email" class="form-control" required>
                             </div>
                             
+                            <!-- Password -->
                             <div class="form-group">
-                                <label for="register-password">Password:</label>
+                                <label for="register-password">Password: <span style="color: red;">*</span></label>
                                 <input type="password" id="register-password" name="password" class="form-control" required minlength="6">
                                 <small style="color: #6c757d;">Minimum 6 characters</small>
+                            </div>
+                            
+                            <!-- Role Selection (Student/Professor) -->
+                            <div class="form-group">
+                                <label for="register-role">I am a: <span style="color: red;">*</span></label>
+                                <select id="register-role" name="role" class="form-control" required>
+                                    <option value="">-- Select Role --</option>
+                                    <option value="student">Student</option>
+                                    <option value="professor">Professor</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Department (Common for both) -->
+                            <div class="form-group">
+                                <label for="register-department">Department: <span style="color: red;">*</span></label>
+                                <input type="text" id="register-department" name="department" class="form-control" required placeholder="e.g., Computer Science">
+                            </div>
+                            
+                            <!-- Class (Only for Students) -->
+                            <div class="form-group" id="class-field" style="display: none;">
+                                <label for="register-class">Class: <span style="color: red;">*</span></label>
+                                <input type="text" id="register-class" name="class" class="form-control" placeholder="e.g., BSc CS 3rd Year">
+                            </div>
+                            
+                            <!-- Designation (Only for Professors) -->
+                            <div class="form-group" id="designation-field" style="display: none;">
+                                <label for="register-designation">Designation: <span style="color: red;">*</span></label>
+                                <input type="text" id="register-designation" name="designation" class="form-control" placeholder="e.g., Assistant Professor">
+                            </div>
+                            
+                            <!-- Google reCAPTCHA -->
+                            <div class="form-group" style="margin: 1.5rem 0;">
+                                <div class="g-recaptcha" data-sitekey="<?php echo RECAPTCHA_SITE_KEY; ?>"></div>
                             </div>
                             
                             <button type="submit" class="btn btn-primary btn-block">Register</button>
@@ -194,5 +252,74 @@ if (isset($_POST['action']) && $_POST['action'] === 'forgot_password') {
     </footer>
 
     <script src="js/script.js"></script>
+    
+    <!-- Role-Based Dynamic Fields Script -->
+    <script>
+        // Get form elements
+        const roleSelect = document.getElementById('register-role');
+        const classField = document.getElementById('class-field');
+        const designationField = document.getElementById('designation-field');
+        const classInput = document.getElementById('register-class');
+        const designationInput = document.getElementById('register-designation');
+        
+        // Listen for role selection changes
+        if (roleSelect) {
+            roleSelect.addEventListener('change', function() {
+                const selectedRole = this.value;
+                
+                // Hide both fields initially
+                classField.style.display = 'none';
+                designationField.style.display = 'none';
+                
+                // Remove required attribute from both
+                classInput.removeAttribute('required');
+                designationInput.removeAttribute('required');
+                
+                // Clear values
+                classInput.value = '';
+                designationInput.value = '';
+                
+                // Show appropriate field based on role
+                if (selectedRole === 'student') {
+                    classField.style.display = 'block';
+                    classInput.setAttribute('required', 'required');
+                } else if (selectedRole === 'professor') {
+                    designationField.style.display = 'block';
+                    designationInput.setAttribute('required', 'required');
+                }
+            });
+        }
+        
+        // Form validation before submit
+        const registerForm = document.getElementById('registerForm');
+        if (registerForm) {
+            registerForm.addEventListener('submit', function(e) {
+                const role = roleSelect.value;
+                
+                // Validate role-specific fields
+                if (role === 'student' && !classInput.value.trim()) {
+                    e.preventDefault();
+                    alert('Please enter your class.');
+                    classInput.focus();
+                    return false;
+                }
+                
+                if (role === 'professor' && !designationInput.value.trim()) {
+                    e.preventDefault();
+                    alert('Please enter your designation.');
+                    designationInput.focus();
+                    return false;
+                }
+                
+                // Validate reCAPTCHA
+                const recaptchaResponse = grecaptcha.getResponse();
+                if (!recaptchaResponse) {
+                    e.preventDefault();
+                    alert('Please complete the CAPTCHA verification.');
+                    return false;
+                }
+            });
+        }
+    </script>
 </body>
 </html>
