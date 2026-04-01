@@ -5,10 +5,10 @@ $message = '';
 $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = $_POST['email'];
-    $newPassword = $_POST['new_password'];
+    $email           = $_POST['email'];
+    $newPassword     = $_POST['new_password'];
     $confirmPassword = $_POST['confirm_password'];
-    
+
     if (empty($email) || empty($newPassword) || empty($confirmPassword)) {
         $message = 'All fields are required.';
         $messageType = 'error';
@@ -19,21 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Password must be at least 6 characters.';
         $messageType = 'error';
     } else {
-        $pdo = getDBConnection();
-        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        
-        if ($stmt->fetch()) {
-            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-            $updateStmt = $pdo->prepare("UPDATE users SET password = ? WHERE email = ?");
-            
-            if ($updateStmt->execute([$hashedPassword, $email])) {
-                $message = 'Password reset successful! You can now login.';
-                $messageType = 'success';
-            } else {
-                $message = 'Failed to reset password.';
-                $messageType = 'error';
-            }
+        $col  = getCollection('users');
+        $user = $col->findOne(['email' => $email]);
+        if ($user) {
+            $col->updateOne(['email' => $email], ['$set' => ['password' => password_hash($newPassword, PASSWORD_DEFAULT)]]);
+            $message = 'Password reset successful! You can now login.';
+            $messageType = 'success';
         } else {
             $message = 'Email not found.';
             $messageType = 'error';
