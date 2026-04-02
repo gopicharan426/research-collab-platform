@@ -4,59 +4,58 @@ require_once __DIR__ . '/notifications.php';
 
 function followUser($followerId, $followingId) {
     if ($followerId == $followingId) return "Cannot follow yourself.";
-    $col      = getCollection('followers');
-    $existing = $col->findOne(['follower_id' => (int)$followerId, 'following_id' => (int)$followingId]);
-    if ($existing) return "success";
-
-    $col->insertOne([
-        'follower_id'  => (int)$followerId,
-        'following_id' => (int)$followingId,
-        'created_at'   => date('Y-m-d H:i:s')
-    ]);
-
-    $sender = getCollection('users')->findOne(['user_id' => (int)$followerId]);
-    createNotification(
-        (int)$followingId, (int)$followerId, 'follow',
-        htmlspecialchars($sender['name'], ENT_QUOTES, 'UTF-8') . " started following you.",
-        "/view_profile.php?id=$followerId"
-    );
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("INSERT IGNORE INTO followers (follower_id, following_id) VALUES (?, ?)");
+    if ($stmt->execute([$followerId, $followingId]) && $stmt->rowCount() > 0) {
+        $s = $pdo->prepare("SELECT name FROM users WHERE user_id = ?");
+        $s->execute([$followerId]);
+        $sender = $s->fetch(PDO::FETCH_ASSOC);
+        createNotification($followingId, $followerId, 'follow',
+            htmlspecialchars($sender['name'], ENT_QUOTES, 'UTF-8') . " started following you.",
+            "/view_profile.php?id=$followerId"
+        );
+    }
     return "success";
 }
 
 function unfollowUser($followerId, $followingId) {
-    getCollection('followers')->deleteOne(['follower_id' => (int)$followerId, 'following_id' => (int)$followingId]);
+    $pdo = getDBConnection();
+    $pdo->prepare("DELETE FROM followers WHERE follower_id = ? AND following_id = ?")->execute([$followerId, $followingId]);
     return "success";
 }
 
 function isFollowing($followerId, $followingId) {
-    return (bool)getCollection('followers')->findOne(['follower_id' => (int)$followerId, 'following_id' => (int)$followingId]);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT id FROM followers WHERE follower_id = ? AND following_id = ?");
+    $stmt->execute([$followerId, $followingId]);
+    return $stmt->fetch() ? true : false;
 }
 
 function getFollowers($userId) {
-    $col     = getCollection('followers');
-    $users   = getCollection('users');
-    $follows = $col->find(['following_id' => (int)$userId])->toArray();
-    return array_map(function($f) use ($users) {
-        $u = $users->findOne(['user_id' => (int)$f['follower_id']]);
-        return ['user_id' => (int)$f['follower_id'], 'name' => $u['name'] ?? '', 'username' => $u['username'] ?? ''];
-    }, $follows);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT u.user_id, u.name, u.username FROM followers f JOIN users u ON f.follower_id = u.user_id WHERE f.following_id = ? ORDER BY f.created_at DESC");
+    $stmt->execute([$userId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function getFollowing($userId) {
-    $col     = getCollection('followers');
-    $users   = getCollection('users');
-    $follows = $col->find(['follower_id' => (int)$userId])->toArray();
-    return array_map(function($f) use ($users) {
-        $u = $users->findOne(['user_id' => (int)$f['following_id']]);
-        return ['user_id' => (int)$f['following_id'], 'name' => $u['name'] ?? '', 'username' => $u['username'] ?? ''];
-    }, $follows);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT u.user_id, u.name, u.username FROM followers f JOIN users u ON f.following_id = u.user_id WHERE f.follower_id = ? ORDER BY f.created_at DESC");
+    $stmt->execute([$userId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function getFollowerCount($userId) {
-    return (int)getCollection('followers')->countDocuments(['following_id' => (int)$userId]);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM followers WHERE following_id = ?");
+    $stmt->execute([$userId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC)['count'];
 }
 
 function getFollowingCount($userId) {
-    return (int)getCollection('followers')->countDocuments(['follower_id' => (int)$userId]);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM followers WHERE follower_id = ?");
+    $stmt->execute([$userId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC)['count'];
 }
 ?>

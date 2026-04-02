@@ -3,24 +3,22 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../social/notifications.php';
 
 function toggleLike($postId, $userId) {
-    $col      = getCollection('post_likes');
-    $posts    = getCollection('research_posts');
-    $users    = getCollection('users');
-    $existing = $col->findOne(['post_id' => (int)$postId, 'user_id' => (int)$userId]);
-
-    if ($existing) {
-        $col->deleteOne(['post_id' => (int)$postId, 'user_id' => (int)$userId]);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT like_id FROM post_likes WHERE post_id = ? AND user_id = ?");
+    $stmt->execute([$postId, $userId]);
+    if ($stmt->fetch()) {
+        $pdo->prepare("DELETE FROM post_likes WHERE post_id = ? AND user_id = ?")->execute([$postId, $userId]);
         return "unliked";
     }
-
-    $col->insertOne(['post_id' => (int)$postId, 'user_id' => (int)$userId, 'created_at' => date('Y-m-d H:i:s')]);
-
-    $post   = $posts->findOne(['post_id' => (int)$postId]);
-    $sender = $users->findOne(['user_id' => (int)$userId]);
-
-    if ($post && (int)$post['user_id'] !== (int)$userId) {
-        createNotification(
-            (int)$post['user_id'], (int)$userId, 'like',
+    $pdo->prepare("INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)")->execute([$postId, $userId]);
+    $post   = $pdo->prepare("SELECT user_id, title FROM research_posts WHERE post_id = ?");
+    $post->execute([$postId]);
+    $post   = $post->fetch(PDO::FETCH_ASSOC);
+    $sender = $pdo->prepare("SELECT name FROM users WHERE user_id = ?");
+    $sender->execute([$userId]);
+    $sender = $sender->fetch(PDO::FETCH_ASSOC);
+    if ($post && $post['user_id'] != $userId) {
+        createNotification($post['user_id'], $userId, 'like',
             htmlspecialchars($sender['name'], ENT_QUOTES, 'UTF-8') . ' liked your post "' . htmlspecialchars(substr($post['title'], 0, 40), ENT_QUOTES, 'UTF-8') . '"',
             "/post_details.php?id=$postId"
         );
@@ -29,19 +27,28 @@ function toggleLike($postId, $userId) {
 }
 
 function getLikeCount($postId) {
-    return (int)getCollection('post_likes')->countDocuments(['post_id' => (int)$postId]);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?");
+    $stmt->execute([$postId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC)['count'];
 }
 
 function hasUserLiked($postId, $userId) {
-    return (bool)getCollection('post_likes')->findOne(['post_id' => (int)$postId, 'user_id' => (int)$userId]);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT like_id FROM post_likes WHERE post_id = ? AND user_id = ?");
+    $stmt->execute([$postId, $userId]);
+    return $stmt->fetch() ? true : false;
 }
 
 function incrementViews($postId) {
-    getCollection('research_posts')->updateOne(['post_id' => (int)$postId], ['$inc' => ['views' => 1]]);
+    $pdo = getDBConnection();
+    $pdo->prepare("UPDATE research_posts SET views = views + 1 WHERE post_id = ?")->execute([$postId]);
 }
 
 function getViewCount($postId) {
-    $post = getCollection('research_posts')->findOne(['post_id' => (int)$postId]);
-    return (int)($post['views'] ?? 0);
+    $pdo  = getDBConnection();
+    $stmt = $pdo->prepare("SELECT views FROM research_posts WHERE post_id = ?");
+    $stmt->execute([$postId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC)['views'] ?? 0;
 }
 ?>
