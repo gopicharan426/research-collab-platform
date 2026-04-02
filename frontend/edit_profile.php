@@ -1,6 +1,6 @@
 <?php
-require_once '../backend/app/auth/auth.php';
-require_once '../backend/app/users/profile.php';
+require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/profile.php';
 
 requireLogin();
 

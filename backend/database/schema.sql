@@ -1,8 +1,5 @@
 -- Research Collaboration Platform Database Schema
 
-CREATE DATABASE IF NOT EXISTS research_collab;
-USE research_collab;
-
 -- Users table
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,

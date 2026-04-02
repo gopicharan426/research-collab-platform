@@ -1,6 +1,6 @@
 <?php
-require_once '../backend/app/auth/auth.php';
-require_once '../backend/app/social/notifications.php';
+require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/notifications_fn.php';
 
 header('Content-Type: application/json');
 

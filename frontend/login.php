@@ -1,7 +1,7 @@
 <?php
-require_once '../backend/app/auth/auth.php';
-require_once '../backend/app/config/google_config.php';
-require_once '../backend/app/config/recaptcha_config.php';
+require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/google_config.php';
+require_once __DIR__ . '/recaptcha_config.php';
 
 // Generate Google OAuth URL
 $googleAuthUrl = GOOGLE_AUTH_URL . '?' . http_build_query([

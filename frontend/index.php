@@ -1,9 +1,9 @@
 <?php
-require_once '../backend/app/auth/auth.php';
-require_once '../backend/app/posts/posts.php';
-require_once '../backend/app/comments/comments.php';
-require_once '../backend/app/posts/likes.php';
-require_once '../backend/app/social/notifications.php';
+require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/posts.php';
+require_once __DIR__ . '/comments.php';
+require_once __DIR__ . '/likes.php';
+require_once __DIR__ . '/notifications_fn.php';
 
 // Require login
 requireLogin();

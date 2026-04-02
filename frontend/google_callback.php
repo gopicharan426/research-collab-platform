@@ -1,6 +1,6 @@
 <?php
-require_once '../backend/app/config/database.php';
-require_once '../backend/app/config/google_config.php';
+require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/google_config.php';
 
 if (isset($_GET['code'])) {
     $ch = curl_init(GOOGLE_TOKEN_URL);
