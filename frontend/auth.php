@@ -1,12 +1,7 @@
 <?php
 require_once __DIR__ . '/database.php';
-require_once __DIR__ . '/recaptcha_config.php';
-
-function verifyRecaptcha($response) { return true; }
-
-function registerUser($name, $username, $email, $password, $role, $department, $class = null, $designation = null, $recaptchaResponse = null) {
+function registerUser($name, $username, $email, $password, $role, $department, $class = null, $designation = null) {
     $pdo = getDBConnection();
-    if (!verifyRecaptcha($recaptchaResponse)) return "CAPTCHA verification failed.";
     if (empty($name) || empty($username) || empty($email) || empty($password) || empty($role) || empty($department))
         return "All required fields must be filled.";
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return "Invalid email format.";

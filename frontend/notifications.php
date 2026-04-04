@@ -1,6 +1,8 @@
 <?php
+ob_start();
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/notifications_fn.php';
+ob_clean();
 
 header('Content-Type: application/json');
 

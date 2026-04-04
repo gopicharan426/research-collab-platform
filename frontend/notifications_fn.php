@@ -15,7 +15,7 @@ function notifyFollowersNewPost($authorId, $postId, $authorName, $postTitle) {
     $followers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $message   = htmlspecialchars($authorName, ENT_QUOTES, 'UTF-8') . ' posted: "' . htmlspecialchars(substr($postTitle, 0, 50), ENT_QUOTES, 'UTF-8') . '"';
     foreach ($followers as $f) {
-        createNotification($f['follower_id'], $authorId, 'new_post', $message, "/post_details.php?id=$postId", $postId, 'post');
+        createNotification($f['follower_id'], $authorId, 'new_post', $message, "post_details.php?id=$postId", $postId, 'post');
     }
 }
 

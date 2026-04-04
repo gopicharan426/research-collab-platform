@@ -16,7 +16,7 @@ function toggleLike($postId, $userId) {
     $s = $pdo->prepare("SELECT name FROM users WHERE user_id = ?");
     $s->execute([$userId]); $sender = $s->fetch(PDO::FETCH_ASSOC);
     if ($post && $post['user_id'] != $userId)
-        createNotification($post['user_id'], $userId, 'like', htmlspecialchars($sender['name'], ENT_QUOTES, 'UTF-8') . ' liked your post "' . htmlspecialchars(substr($post['title'], 0, 40), ENT_QUOTES, 'UTF-8') . '"', "/post_details.php?id=$postId");
+        createNotification($post['user_id'], $userId, 'like', htmlspecialchars($sender['name'], ENT_QUOTES, 'UTF-8') . ' liked your post "' . htmlspecialchars(substr($post['title'], 0, 40), ENT_QUOTES, 'UTF-8') . '"', "post_details.php?id=$postId");
     return "liked";
 }
 

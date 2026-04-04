@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ── Notification System ──
 
 const NOTIF_ICONS = { follow: '\uD83D\uDC64', like: '\u2764\uFE0F', comment: '\uD83D\uDCAC', new_post: '\uD83D\uDCDD' };
-const NOTIF_URL = '/notifications.php';
+const NOTIF_URL = 'notifications.php';
 let notifPollInterval = null;
 let lastUnreadCount = 0;
 

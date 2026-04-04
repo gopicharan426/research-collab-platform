@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/google_config.php';
-require_once __DIR__ . '/recaptcha_config.php';
 
 // Generate Google OAuth URL
 $googleAuthUrl = GOOGLE_AUTH_URL . '?' . http_build_query([
@@ -47,7 +46,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'register') {
     $designation = $_POST['designation'] ?? null;
     $recaptchaResponse = $_POST['g-recaptcha-response'] ?? '';
     
-    $result = registerUser($name, $username, $email, $password, $role, $department, $class, $designation, $recaptchaResponse);
+    $result = registerUser($name, $username, $email, $password, $role, $department, $class, $designation);
     
     if ($result === 'success') {
         $message = 'Registration successful! Please login.';
@@ -73,8 +72,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'forgot_password') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Research Collaboration Platform</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- Google reCAPTCHA v2 -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
     <header class="header">
@@ -201,11 +198,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'forgot_password') {
                                 <input type="text" id="register-designation" name="designation" class="form-control" placeholder="e.g., Assistant Professor">
                             </div>
                             
-                            <!-- Google reCAPTCHA -->
-                            <div class="form-group" style="margin: 1.5rem 0;">
-                                <div class="g-recaptcha" data-sitekey="<?php echo RECAPTCHA_SITE_KEY; ?>"></div>
-                            </div>
-                            
                             <button type="submit" class="btn btn-primary btn-block">Register</button>
                         </form>
                         
@@ -311,13 +303,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'forgot_password') {
                     return false;
                 }
                 
-                // Validate reCAPTCHA
-                const recaptchaResponse = grecaptcha.getResponse();
-                if (!recaptchaResponse) {
-                    e.preventDefault();
-                    alert('Please complete the CAPTCHA verification.');
-                    return false;
-                }
             });
         }
     </script>

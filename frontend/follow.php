@@ -10,7 +10,7 @@ function followUser($followerId, $followingId) {
         $s = $pdo->prepare("SELECT name FROM users WHERE user_id = ?");
         $s->execute([$followerId]);
         $sender = $s->fetch(PDO::FETCH_ASSOC);
-        createNotification($followingId, $followerId, 'follow', htmlspecialchars($sender['name'], ENT_QUOTES, 'UTF-8') . " started following you.", "/view_profile.php?id=$followerId");
+        createNotification($followingId, $followerId, 'follow', htmlspecialchars($sender['name'], ENT_QUOTES, 'UTF-8') . " started following you.", "view_profile.php?id=$followerId");
     }
     return "success";
 }
